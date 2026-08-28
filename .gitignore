@@ -1,3 +1,9 @@
-.streamlit
+.streamlit/secrets.toml
 __pycache__/
 *.pyc
+/data
+thesis_framing.md
+runs.md
+.venv/
+venv/
+.DS_Store
