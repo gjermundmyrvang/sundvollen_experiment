@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from api.client import client, CONDITION, MODEL
 from schema import EXPECTED_COLUMNS
+from api.supabase import supabase
 
 st.set_page_config(
     page_title="Experiment",
@@ -277,7 +278,29 @@ def finalize_session_metrics():
     st.session_state.tokens_out = sum(st.session_state.turn_tokens_out)
     st.session_state.n_turns = len(st.session_state.turn_energy_wh)
 
+    try:
+        update_shared_total(st.session_state.energy_wh, st.session_state.water_l)
+    except Exception as e:
+        st.warning(
+            "Kunne ikke oppdatere delt total (ingen nettverk?), fortsetter lokalt."
+        )
+
     save_conversation_transcript()
+
+
+def update_shared_total(energy_wh, water_l):
+    if supabase is None:
+        return  # feature not configured, silently skip
+    try:
+        supabase.rpc(
+            "increment_totals",
+            {
+                "add_energy": energy_wh,
+                "add_water": water_l,
+            },
+        ).execute()
+    except Exception:
+        pass  # continue if network hiccup breaks flow
 
 
 def render_frequency():
