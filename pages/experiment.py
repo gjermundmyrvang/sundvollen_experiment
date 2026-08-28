@@ -432,11 +432,11 @@ def render_concrete_visual(actual_wh, frequency_label, guess, guess_correct):
         time.sleep(1.0)
 
     st.write("Denne samtalen, i telefonladninger:")
-    render_battery_row(actual_wh)
+    render_battery_row(actual_wh, icon_width=70, per_row=6)
 
     per_week, yearly_wh = compute_yearly_projection(actual_wh, frequency_label)
     st.markdown(f"##### Hvis dere gjør dette {per_week}x i uken, i ett år:")
-    render_battery_row(yearly_wh, max_icons=40)
+    render_battery_row(yearly_wh)
 
     st.session_state.reveal_animated = True
     st.session_state.reveal_done = True
