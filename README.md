@@ -100,3 +100,17 @@ To run the abstract and concrete conditions side by side (e.g. on two
 laptops at an event), clone the repo twice (or run two separate local
 copies), and set a different `CONDITION` value in each instance's
 `secrets.toml`.
+
+## Optional: shared live totals (Supabase)
+
+This is a personal addition used for a specific event deployment and is
+not required to run the core experiment. If you want to enable it:
+
+pip install -r requirements-optional.txt
+
+Then add to your `secrets.toml`:
+
+SUPABASE_URL = "..."
+SUPABASE_KEY = "..."
+
+Without these, the app runs normally and simply skips the shared-total update.
