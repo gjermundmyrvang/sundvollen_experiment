@@ -3,6 +3,7 @@ import streamlit as st
 import pandas as pd
 
 from pathlib import Path
+from schema import EXPECTED_COLUMNS
 
 VIZ_HEIGHT = 700
 LOG_PATH = Path("data/sessions.csv")
@@ -21,28 +22,24 @@ st.caption("Inspect data")
 
 def load_sessions():
     if not LOG_PATH.exists():
-        return pd.DataFrame(
-            columns=[
-                "timestamp",
-                "condition",
-                "group_code",
-                "duration_s",
-                "n_turns",
-                "tokens_in",
-                "tokens_out",
-                "energy_wh",
-                "co2_g",
-                "turn_energy_wh",
-                "turn_co2_g",
-                "turn_tokens_in",
-                "turn_tokens_out",
-                "guess",
-                "guess_correct",
-                "reactions",
-                "reflection",
-            ]
+        return pd.DataFrame(columns=EXPECTED_COLUMNS)
+
+    try:
+        df = pd.read_csv(LOG_PATH, parse_dates=["timestamp"])
+    except pd.errors.ParserError:
+        st.error(
+            "sessions.csv har et format som ikke matcher gjeldende kolonner. "
+            "Slett data/sessions.csv og start på nytt, eller gjenopprett fra backup."
         )
-    return pd.read_csv(LOG_PATH, parse_dates=["timestamp"])
+        st.stop()
+
+    missing = set(EXPECTED_COLUMNS) - set(df.columns)
+    if missing:
+        st.warning(f"Mangler kolonner i loggfilen: {sorted(missing)}")
+        for col in missing:
+            df[col] = None
+
+    return df
 
 
 df = load_sessions()
@@ -52,7 +49,18 @@ if df.empty:
     st.stop()
 
 # Process data
-for col in ["turn_energy_wh", "turn_co2_g"]:
+list_float_cols = [
+    "turn_energy_wh",
+    "turn_energy_wh_min",
+    "turn_energy_wh_max",
+    "turn_co2_g",
+    "turn_co2_g_min",
+    "turn_co2_g_max",
+    "turn_water_l",
+    "turn_water_l_min",
+    "turn_water_l_max",
+]
+for col in list_float_cols:
     df[col] = df[col].apply(
         lambda s: (
             [float(x) for x in re.split(r"[,;]", str(s))]
@@ -80,12 +88,13 @@ df["reactions"] = df["reactions"].apply(
 
 # --- High-Level KPIs ---
 st.header("High-Level KPIs")
-m1, m2, m3, m4, m5 = st.columns(5)
+m1, m2, m3, m4, m5, m6 = st.columns(6)
 m1.metric("Total Sessions", len(df))
 m2.metric("Total Energy (Wh)", f"{df['energy_wh'].sum():.2f}")
 m3.metric("Total CO2 (g)", f"{df['co2_g'].sum():.2f}")
-m4.metric("Avg Session Duration", f"{df['duration_s'].mean():.1f}s")
-m5.metric(
+m4.metric("Total Water (L)", f"{df['water_l'].sum():.3f}")
+m5.metric("Avg Session Duration", f"{df['duration_s'].mean():.1f}s")
+m6.metric(
     "Guess Accuracy",
     f"{(df['guess_correct'].sum() / len(df) * 100):.0f}%" if len(df) > 0 else "N/A",
 )
