@@ -5,6 +5,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 from api.client import client, CONDITION, MODEL
+from schema import EXPECTED_COLUMNS
 
 st.set_page_config(
     page_title="Experiment",
@@ -91,6 +92,23 @@ def init_state():
     }
     for k, v in defaults.items():
         st.session_state.setdefault(k, v)
+
+    turn_keys = [
+        "turn_energy_wh",
+        "turn_energy_wh_min",
+        "turn_energy_wh_max",
+        "turn_co2_g",
+        "turn_co2_g_min",
+        "turn_co2_g_max",
+        "turn_water_l",
+        "turn_water_l_min",
+        "turn_water_l_max",
+        "turn_tokens_in",
+        "turn_tokens_out",
+    ]
+    for key in turn_keys:
+        if key not in st.session_state:
+            st.session_state[key] = []
 
 
 def reset_for_next_group():
@@ -181,14 +199,23 @@ def render_task():
                 ]
                 response = client.responses.create(model=MODEL, input=input_messages)
 
-        impacts = response.impacts
         answer = response.output_text
+        impacts_data = extract_impacts(response)
 
         st.session_state.messages.append({"role": "assistant", "content": answer})
 
         # Store metrics
-        st.session_state.turn_energy_wh.append(impacts.energy.value.mean * 1000)
-        st.session_state.turn_co2_g.append(impacts.gwp.value.mean * 1000)
+        st.session_state.turn_energy_wh.append(impacts_data["energy_wh"])
+        st.session_state.turn_energy_wh_min.append(impacts_data["energy_wh_min"])
+        st.session_state.turn_energy_wh_max.append(impacts_data["energy_wh_max"])
+
+        st.session_state.turn_co2_g.append(impacts_data["co2_g"])
+        st.session_state.turn_co2_g_min.append(impacts_data["co2_g_min"])
+        st.session_state.turn_co2_g_max.append(impacts_data["co2_g_max"])
+
+        st.session_state.turn_water_l.append(impacts_data["water_l"])
+        st.session_state.turn_water_l_min.append(impacts_data["water_l_min"])
+        st.session_state.turn_water_l_max.append(impacts_data["water_l_max"])
         st.session_state.turn_tokens_in.append(response.usage.input_tokens)
         st.session_state.turn_tokens_out.append(response.usage.output_tokens)
 
@@ -203,9 +230,47 @@ def render_task():
             st.rerun()
 
 
+def extract_impacts(response):
+    impacts = response.impacts
+
+    energy_min = impacts.energy.value.min * 1000
+    energy_max = impacts.energy.value.max * 1000
+    energy_mid = (energy_min + energy_max) / 2
+
+    co2_min = impacts.gwp.value.min * 1000
+    co2_max = impacts.gwp.value.max * 1000
+    co2_mid = (co2_min + co2_max) / 2
+
+    water_min = impacts.wcf.value.min
+    water_max = impacts.wcf.value.max
+    water_mid = (water_min + water_max) / 2
+
+    return {
+        "energy_wh": energy_mid,
+        "energy_wh_min": energy_min,
+        "energy_wh_max": energy_max,
+        "co2_g": co2_mid,
+        "co2_g_min": co2_min,
+        "co2_g_max": co2_max,
+        "water_l": water_mid,
+        "water_l_min": water_min,
+        "water_l_max": water_max,
+    }
+
+
 def finalize_session_metrics():
     st.session_state.energy_wh = sum(st.session_state.turn_energy_wh)
+    st.session_state.energy_wh_min = sum(st.session_state.turn_energy_wh_min)
+    st.session_state.energy_wh_max = sum(st.session_state.turn_energy_wh_max)
+
     st.session_state.co2_g = sum(st.session_state.turn_co2_g)
+    st.session_state.co2_g_min = sum(st.session_state.turn_co2_g_min)
+    st.session_state.co2_g_max = sum(st.session_state.turn_co2_g_max)
+
+    st.session_state.water_l = sum(st.session_state.turn_water_l)
+    st.session_state.water_l_min = sum(st.session_state.turn_water_l_min)
+    st.session_state.water_l_max = sum(st.session_state.turn_water_l_max)
+
     st.session_state.tokens_in = sum(st.session_state.turn_tokens_in)
     st.session_state.tokens_out = sum(st.session_state.turn_tokens_out)
     st.session_state.n_turns = len(st.session_state.turn_energy_wh)
@@ -273,12 +338,18 @@ def render_reveal():
 
 
 def render_abstract_reveal(actual_wh, guess, guess_correct, frequency_label):
+    energy_min = st.session_state.get("energy_wh_min")
+    energy_max = st.session_state.get("energy_wh_max")
+    water_l = st.session_state.get("water_l")
+    water_l_min = st.session_state.get("water_l_min")
+    water_l_max = st.session_state.get("water_l_max")
+
     if not st.session_state.get("reveal_animated"):
         st.write(f"Dere gjettet: **{guess}**")
         time.sleep(0.7)
 
         if guess_correct:
-            st.success("Riktig gjettet! 🎯")
+            st.success("Riktig gjettet!")
         else:
             st.error("Ikke helt &rarr; her er fasiten.")
         time.sleep(1.0)
@@ -287,9 +358,23 @@ def render_abstract_reveal(actual_wh, guess, guess_correct, frequency_label):
         animate_number(
             number_placeholder, actual_wh, unit="Wh", label="Denne samtalen brukte"
         )
+        st.caption(
+            f"Estimert mellom {energy_min:.2f} og {energy_max:.2f} Wh &rarr; "
+            f"arkitekturen til denne modellen er ikke offentlig kjent, "
+            f"så dette er et anslag."
+        )
+        time.sleep(1.0)
+
+        st.write(
+            f"💧 I tillegg brukte samtalen omtrent **{water_l:.3f} liter vann** "
+            f"({water_l_min:.3f}–{water_l_max:.3f} L)."
+        )
+
         time.sleep(1.0)
 
         per_week, yearly_wh = compute_yearly_projection(actual_wh, frequency_label)
+        yearly_min = energy_min * per_week * 52
+        yearly_max = energy_max * per_week * 52
 
         st.markdown(f"##### Hvis dere gjør dette {per_week}x i uken ...")
         time.sleep(0.6)
@@ -297,6 +382,9 @@ def render_abstract_reveal(actual_wh, guess, guess_correct, frequency_label):
         yearly_placeholder = st.empty()
         animate_number(
             yearly_placeholder, yearly_wh, unit="Wh", label="... blir det på ett år"
+        )
+        st.caption(
+            f"Et sted mellom {yearly_min:.0f} og {yearly_max:.0f} Wh, avhengig av anslaget."
         )
 
         phone_charges = yearly_wh / REFERENCE_WH
@@ -308,6 +396,7 @@ def render_abstract_reveal(actual_wh, guess, guess_correct, frequency_label):
 
     else:
         st.metric("Denne samtalen", f"{actual_wh:.2f} Wh")
+        st.caption(f"({energy_min:.2f}–{energy_max:.2f} Wh)")
         per_week, yearly_wh = compute_yearly_projection(actual_wh, frequency_label)
         st.metric("Estimert årlig bruk", f"{yearly_wh:.0f} Wh")
         phone_charges = yearly_wh / REFERENCE_WH
@@ -372,81 +461,68 @@ def log_session():
     LOG_PATH.parent.mkdir(exist_ok=True)
     file_exists = LOG_PATH.exists()
 
-    timestamp = datetime.now().isoformat(timespec="seconds")
-    condition = CONDITION
-    group_code = st.session_state.get("group_code")
-    duration_s = (datetime.now() - st.session_state.get("start_time")).total_seconds()
-    n_turns = st.session_state.get("n_turns")
-
-    tokens_in = st.session_state.get("tokens_in")
-    tokens_out = st.session_state.get("tokens_out")
-    energy_wh = st.session_state.get("energy_wh")
-    co2_g = st.session_state.get("co2_g")
-
-    turn_energy_wh = ";".join(
-        str(v) for v in st.session_state.get("turn_energy_wh", [])
-    )
-    turn_co2_g = ";".join(str(v) for v in st.session_state.get("turn_co2_g", []))
-    turn_tokens_in = ";".join(
-        str(v) for v in st.session_state.get("turn_tokens_in", [])
-    )
-    turn_tokens_out = ";".join(
-        str(v) for v in st.session_state.get("turn_tokens_out", [])
-    )
-
-    frequency = st.session_state.get("frequency")
-    guess = st.session_state.get("guess")
-    guess_correct = st.session_state.get("guess_correct")
-    reactions = ";".join(st.session_state.get("reactions", []))
-    reflection = st.session_state.get("reflection")
+    row_values = {
+        "timestamp": datetime.now().isoformat(timespec="seconds"),
+        "condition": CONDITION,
+        "group_code": st.session_state.get("group_code"),
+        "duration_s": (
+            datetime.now() - st.session_state.get("start_time")
+        ).total_seconds(),
+        "n_turns": st.session_state.get("n_turns"),
+        "tokens_in": st.session_state.get("tokens_in"),
+        "tokens_out": st.session_state.get("tokens_out"),
+        "energy_wh": st.session_state.get("energy_wh"),
+        "energy_wh_min": st.session_state.get("energy_wh_min"),
+        "energy_wh_max": st.session_state.get("energy_wh_max"),
+        "co2_g": st.session_state.get("co2_g"),
+        "co2_g_min": st.session_state.get("co2_g_min"),
+        "co2_g_max": st.session_state.get("co2_g_max"),
+        "water_l": st.session_state.get("water_l"),
+        "water_l_min": st.session_state.get("water_l_min"),
+        "water_l_max": st.session_state.get("water_l_max"),
+        "turn_energy_wh": ";".join(
+            str(v) for v in st.session_state.get("turn_energy_wh", [])
+        ),
+        "turn_energy_wh_min": ";".join(
+            str(v) for v in st.session_state.get("turn_energy_wh_min", [])
+        ),
+        "turn_energy_wh_max": ";".join(
+            str(v) for v in st.session_state.get("turn_energy_wh_max", [])
+        ),
+        "turn_co2_g": ";".join(str(v) for v in st.session_state.get("turn_co2_g", [])),
+        "turn_co2_g_min": ";".join(
+            str(v) for v in st.session_state.get("turn_co2_g_min", [])
+        ),
+        "turn_co2_g_max": ";".join(
+            str(v) for v in st.session_state.get("turn_co2_g_max", [])
+        ),
+        "turn_water_l": ";".join(
+            str(v) for v in st.session_state.get("turn_water_l", [])
+        ),
+        "turn_water_l_min": ";".join(
+            str(v) for v in st.session_state.get("turn_water_l_min", [])
+        ),
+        "turn_water_l_max": ";".join(
+            str(v) for v in st.session_state.get("turn_water_l_max", [])
+        ),
+        "turn_tokens_in": ";".join(
+            str(v) for v in st.session_state.get("turn_tokens_in", [])
+        ),
+        "turn_tokens_out": ";".join(
+            str(v) for v in st.session_state.get("turn_tokens_out", [])
+        ),
+        "frequency": st.session_state.get("frequency"),
+        "guess": st.session_state.get("guess"),
+        "guess_correct": st.session_state.get("guess_correct"),
+        "reactions": ";".join(st.session_state.get("reactions", [])),
+        "reflection": st.session_state.get("reflection"),
+    }
 
     with open(LOG_PATH, "a", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         if not file_exists:
-            writer.writerow(
-                [
-                    "timestamp",
-                    "condition",
-                    "group_code",
-                    "duration_s",
-                    "n_turns",
-                    "tokens_in",
-                    "tokens_out",
-                    "energy_wh",
-                    "co2_g",
-                    "turn_energy_wh",
-                    "turn_co2_g",
-                    "turn_tokens_in",
-                    "turn_tokens_out",
-                    "frequency",
-                    "guess",
-                    "guess_correct",
-                    "reactions",
-                    "reflection",
-                ]
-            )
-        writer.writerow(
-            [
-                timestamp,
-                condition,
-                group_code,
-                duration_s,
-                n_turns,
-                tokens_in,
-                tokens_out,
-                energy_wh,
-                co2_g,
-                turn_energy_wh,
-                turn_co2_g,
-                turn_tokens_in,
-                turn_tokens_out,
-                frequency,
-                guess,
-                guess_correct,
-                reactions,
-                reflection,
-            ]
-        )
+            writer.writerow(EXPECTED_COLUMNS)
+        writer.writerow([row_values[col] for col in EXPECTED_COLUMNS])
 
 
 def save_conversation_transcript():
