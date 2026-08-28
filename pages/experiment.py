@@ -16,6 +16,7 @@ st.set_page_config(
 
 LOG_PATH = Path("data/sessions.csv")
 TRANSCRIPT_DIR = Path("data/transcripts")
+TOPIC_COUNTER_PATH = Path("data/topic_counter.txt")
 
 
 FREQUENCY_OPTIONS = [
@@ -113,10 +114,22 @@ def render_entry():
 
 def assign_topic():
     if "topic_index" not in st.session_state:
-        counter_path = Path("data/topic_counter.txt")
-        idx = int(counter_path.read_text()) if counter_path.exists() else 0
-        counter_path.write_text(str((idx + 1) % len(PRESENTATION_TOPICS)))
+        TOPIC_COUNTER_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+        if TOPIC_COUNTER_PATH.exists():
+            try:
+                idx = int(TOPIC_COUNTER_PATH.read_text().strip())
+            except ValueError:
+                idx = 0
+        else:
+            idx = 0
+
+        idx = idx % len(PRESENTATION_TOPICS)
+        next_idx = (idx + 1) % len(PRESENTATION_TOPICS)
+        TOPIC_COUNTER_PATH.write_text(str(next_idx))
+
         st.session_state.topic_index = idx
+
     return PRESENTATION_TOPICS[st.session_state.topic_index]
 
 
