@@ -2,7 +2,11 @@ import re
 import streamlit as st
 import pandas as pd
 
+from pathlib import Path
+
 VIZ_HEIGHT = 700
+LOG_PATH = Path("data/sessions.csv")
+
 
 st.set_page_config(
     page_title="Dashboard",
@@ -14,7 +18,38 @@ st.set_page_config(
 st.title("Dashboard")
 st.caption("Inspect data")
 
-df = pd.read_csv("data/sessions.csv", parse_dates=["timestamp"])
+
+def load_sessions():
+    if not LOG_PATH.exists():
+        return pd.DataFrame(
+            columns=[
+                "timestamp",
+                "condition",
+                "group_code",
+                "duration_s",
+                "n_turns",
+                "tokens_in",
+                "tokens_out",
+                "energy_wh",
+                "co2_g",
+                "turn_energy_wh",
+                "turn_co2_g",
+                "turn_tokens_in",
+                "turn_tokens_out",
+                "guess",
+                "guess_correct",
+                "reactions",
+                "reflection",
+            ]
+        )
+    return pd.read_csv(LOG_PATH, parse_dates=["timestamp"])
+
+
+df = load_sessions()
+
+if df.empty:
+    st.info("Ingen data enda. Kjør gjennom eksperimentet med minst én gruppe først.")
+    st.stop()
 
 # Process data
 for col in ["turn_energy_wh", "turn_co2_g"]:
