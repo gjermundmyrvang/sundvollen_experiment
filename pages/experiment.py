@@ -476,7 +476,7 @@ def battery_icon_for_fraction(fraction):
     elif fraction >= 0.25:
         return "assets/battery_half.svg"
     else:
-        return "assets/battery_empty.svg"
+        return "assets/battery_low.svg"
 
 
 def render_reaction():
