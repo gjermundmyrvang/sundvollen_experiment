@@ -330,7 +330,7 @@ def render_reveal():
     if CONDITION == "abstract":
         render_abstract_reveal(actual_wh, guess, guess_correct, frequency_label)
     else:
-        render_concrete_visual(actual_wh)
+        render_concrete_visual(actual_wh, frequency_label, guess, guess_correct)
 
     if st.button("Neste"):
         st.session_state.stage = "reaction"
@@ -420,14 +420,63 @@ def compute_yearly_projection(actual_wh, frequency_label):
     return per_week, yearly_wh
 
 
-def render_concrete_visual(energy_wh):
-    # placeholder, replace with a real spatial/visual analogy
-    reference_wh = (
-        10  # calibrate against something relatable, e.g. 1% of a phone charge
-    )
-    fraction = min(energy_wh / reference_wh, 1.0)
-    st.write("Så mye av en telefonlading gikk med til dette svaret:")
-    st.progress(fraction)
+def render_concrete_visual(actual_wh, frequency_label, guess, guess_correct):
+    if not st.session_state.get("reveal_animated"):
+        st.write(f"Dere gjettet: **{guess}**")
+        time.sleep(0.7)
+
+        if guess_correct:
+            st.success("Riktig gjettet!")
+        else:
+            st.error("Ikke helt &rarr; her er fasiten.")
+        time.sleep(1.0)
+
+    st.write("Denne samtalen, i telefonladninger:")
+    render_battery_row(actual_wh)
+
+    per_week, yearly_wh = compute_yearly_projection(actual_wh, frequency_label)
+    st.markdown(f"##### Hvis dere gjør dette {per_week}x i uken, i ett år:")
+    render_battery_row(yearly_wh, max_icons=40)
+
+    st.session_state.reveal_animated = True
+    st.session_state.reveal_done = True
+
+
+def render_battery_row(wh_value, reference_wh=None, icon_width=20, per_row=25):
+    reference_wh = reference_wh or REFERENCE_WH
+    n_full = wh_value / reference_wh
+    full_icons = int(n_full)
+    remainder_fraction = n_full - full_icons
+
+    total = full_icons + (1 if remainder_fraction > 0 else 0)
+    if total == 0:
+        st.write("(ingen målbar ladning)")
+        return
+
+    rows = (total + per_row - 1) // per_row
+    idx = 0
+    for _ in range(rows):
+        cols = st.columns(per_row)
+        for col in cols:
+            if idx >= total:
+                break
+            with col:
+                if idx < full_icons:
+                    st.image("assets/battery_full.svg", width=icon_width)
+                else:
+                    st.image(
+                        battery_icon_for_fraction(remainder_fraction), width=icon_width
+                    )
+            idx += 1
+
+
+def battery_icon_for_fraction(fraction):
+    if fraction >= 0.75:
+        return "assets/battery_full.svg"
+    elif fraction >= 0.25:
+        return "assets/battery_half.svg"
+    else:
+        return "assets/battery_empty.svg"
 
 
 def render_reaction():
