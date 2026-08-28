@@ -224,7 +224,9 @@ def render_task():
 
     # Allow user to finish after at least 1 message
     if user_message_count >= 1:
-        if st.button("Gå videre"):
+        if st.button(
+            "Trykk her hvis dere ønsker å fullføre", type="secondary", width="stretch"
+        ):
             finalize_session_metrics()
             st.session_state.stage = "habit"
             st.rerun()
