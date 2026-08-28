@@ -9,4 +9,5 @@ EcoLogits.init(providers=["openai"])
 client = OpenAI(api_key=st.secrets["OPEN_AI_TEST_KEY"])
 
 CONDITION = st.secrets["CONDITION"]
-MODEL = "gpt-4o-mini"
+# MODEL = "gpt-4o-mini"
+MODEL = "gpt-5"
