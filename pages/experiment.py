@@ -119,16 +119,23 @@ def reset_for_next_group():
 
 
 def render_entry():
-    st.title("Velkommen")
-    code = st.text_input("Skriv inn gruppekoden dere fikk utdelt")
-    if st.button("Start", disabled=not code):
-        st.session_state.group_code = code
-        st.session_state.topic = assign_topic()
+    st.title("Sundvollen AI")
+    st.markdown(
+        "> Hvor mye ressurser krever en kort samtale med en AI chatbot egentlig?"
+    )
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        code = st.text_input("Skriv inn gruppekoden dere fikk utdelt")
+    with col2:
+        st.space("small")
+        if st.button("Start", disabled=not code, type="primary"):
+            st.session_state.group_code = code
+            st.session_state.topic = assign_topic()
 
-        if st.session_state.get("start_time") is None:
-            st.session_state.start_time = datetime.now()
-        st.session_state.stage = "task"
-        st.rerun()
+            if st.session_state.get("start_time") is None:
+                st.session_state.start_time = datetime.now()
+            st.session_state.stage = "task"
+            st.rerun()
 
 
 def assign_topic():
@@ -346,6 +353,9 @@ def evaluate_guess(
 
 def render_reveal():
     st.subheader("Fasit")
+    st.caption(
+        f"Fasit sammenlikner med verdien: **{REFERENCE_WH}Wh** som tilsvarer fulladet smarttelefon."
+    )
 
     actual_wh = st.session_state.get("energy_wh")
     frequency_label = st.session_state.get("frequency")
