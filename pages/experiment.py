@@ -186,6 +186,7 @@ def assign_topic():
 
 
 def render_task():
+    st.badge(MODEL)
     st.subheader("Oppgave")
     current_topic = st.session_state.get("topic")
 
@@ -362,6 +363,12 @@ def render_guess():
         st.session_state.stage = "scope"
         st.rerun()
 
+    st.image(
+        "https://images.unsplash.com/photo-1711056831898-97718f6972d3?q=80&w=4140&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+        caption="Photo by Maxence Pira on Unsplash",
+        width="stretch",
+    )
+
 
 def evaluate_guess(
     guess, actual_wh, reference_wh=REFERENCE_WH, tolerance=GUESS_TOLERANCE
@@ -380,7 +387,7 @@ def evaluate_guess(
 def render_scope():
     st.subheader("Hva tror dere telles med?")
     st.write(
-        "Før 'fasiten', hvilke av disse tror dere "
+        "Før 'fasiten', hvilke av disse operasjonene tror dere "
         "faktisk er regnet med i det tallet?"
     )
     scope_beliefs = st.multiselect("Velg alt dere tror er inkludert", SCOPE_OPTIONS)
@@ -402,6 +409,8 @@ def render_reveal():
         render_abstract_reveal(actual_wh, guess, guess_correct, frequency_label)
     else:
         render_concrete_visual(actual_wh, frequency_label, guess, guess_correct)
+
+    st.divider()
 
     render_scope_comparison()
 
