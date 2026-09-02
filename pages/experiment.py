@@ -625,6 +625,7 @@ def render_reflect():
         st.markdown(
             "- Hva endret seg, om noe, i hvordan dere tenker om denne typen chatbot-bruk?\n"
             "- Hva hjelper tallet/visualiseringen dere forstå, og hva er fortsatt uklart?\n"
+            "- Hvem bør ha ansvaret for å redusere avtrykket knyttet til denne interaksjonen, og hvorfor?"
             "- Følte representasjonen ut som en måling, et anslag, en sammenligning, "
             "eller noe annet?"
         )
