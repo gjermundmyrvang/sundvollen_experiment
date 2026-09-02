@@ -149,12 +149,16 @@ def render_entry():
     st.markdown(
         "> Hvor mye ressurser krever en kort samtale med en AI chatbot egentlig?"
     )
-    col1, col2 = st.columns([0.7, 0.3])
+    col1, col2 = st.columns([0.8, 0.2])
     with col1:
-        code = st.text_input("Skriv inn gruppekoden dere fikk utdelt")
+        code = st.text_input(
+            "Skriv inn gruppekoden dere fikk utdelt",
+            width="stretch",
+            placeholder="feks: gruppe10",
+        )
     with col2:
         st.space("small")
-        if st.button("Start", disabled=not code, type="primary"):
+        if st.button("Start", disabled=not code, type="primary", width="stretch"):
             st.session_state.group_code = code
             st.session_state.topic = assign_topic()
 
@@ -162,6 +166,12 @@ def render_entry():
                 st.session_state.start_time = datetime.now()
             st.session_state.stage = "task"
             st.rerun()
+
+    st.image(
+        "assets/ai_cloud.png",
+        caption="*Bilde hentet fra The 'invisible' materiality of information technology (Borning et al., 2020)*",
+        width="stretch",
+    )
 
 
 def assign_topic():
