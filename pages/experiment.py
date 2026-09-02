@@ -73,6 +73,30 @@ PRESENTATION_TOPICS = [
     "hva boblefolie egentlig ble laget for",
 ]
 
+SCOPE_OPTIONS = [
+    "Selve regnekraften (databehandling)",
+    "Kjøling av datasenteret",
+    "Nettverk/dataoverføring",
+    "Produksjon av maskinvaren",
+    "Lagring av data",
+    "Selve treningen av modellen (før dette ble tatt i bruk)",
+]
+
+GROUND_TRUTH_INCLUDED = {
+    "Selve regnekraften (databehandling)": True,
+    "Kjøling av datasenteret": True,
+    "Nettverk/dataoverføring": False,
+    "Produksjon av maskinvaren": True,
+    "Lagring av data": False,
+    "Selve treningen av modellen (før dette ble tatt i bruk)": False,
+}
+
+SCOPE_TRUTH_NOTE = (
+    "Tallet inkluderer strømbruk til selve databehandlingen (GPU/server) "
+    "og kjøling av datasenteret, samt en andel av utstyrets produksjon. "
+    "Nettverk, datalagring og selve treningen av modellen er **IKKE** med."
+)
+
 
 def init_state():
     defaults = {
@@ -106,6 +130,7 @@ def init_state():
         "turn_water_l_max",
         "turn_tokens_in",
         "turn_tokens_out",
+        "scope_beliefs",
     ]
     for key in turn_keys:
         if key not in st.session_state:
@@ -333,7 +358,7 @@ def render_guess():
         st.session_state.guess_correct = evaluate_guess(
             guess, st.session_state.energy_wh
         )
-        st.session_state.stage = "reveal"
+        st.session_state.stage = "scope"
         st.rerun()
 
 
@@ -349,6 +374,19 @@ def evaluate_guess(
     else:
         true_direction = "Mindre"
     return guess == true_direction
+
+
+def render_scope():
+    st.subheader("Hva tror dere telles med?")
+    st.write(
+        "Før 'fasiten', hvilke av disse tror dere "
+        "faktisk er regnet med i det tallet?"
+    )
+    scope_beliefs = st.multiselect("Velg alt dere tror er inkludert", SCOPE_OPTIONS)
+    if st.button("Lås svar", disabled=len(scope_beliefs) == 0):
+        st.session_state.scope_beliefs = scope_beliefs
+        st.session_state.stage = "reveal"
+        st.rerun()
 
 
 def render_reveal():
@@ -367,9 +405,45 @@ def render_reveal():
     else:
         render_concrete_visual(actual_wh, frequency_label, guess, guess_correct)
 
+    render_scope_comparison()
+
     if st.button("Neste"):
         st.session_state.stage = "reaction"
         st.rerun()
+
+
+def render_scope_comparison():
+    st.markdown("##### Hva trodde dere var med i tallet?")
+
+    beliefs = st.session_state.get("scope_beliefs", [])
+    scoreable_options = [
+        opt for opt in SCOPE_OPTIONS if GROUND_TRUTH_INCLUDED[opt] is not None
+    ]
+
+    believed_included = [opt for opt in scoreable_options if opt in beliefs]
+    believed_excluded = [opt for opt in scoreable_options if opt not in beliefs]
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.write("**Trodde var med:**")
+        if not believed_included:
+            st.write("_(ingenting valgt)_")
+        for opt in believed_included:
+            correct = GROUND_TRUTH_INCLUDED[opt] is True
+            icon = ":material/task_alt:" if correct else ":material/cancel:"
+            st.write(f"{icon} {opt}")
+
+    with col2:
+        st.write("**Trodde ikke var med:**")
+        if not believed_excluded:
+            st.write("_(alt ble valgt)_")
+        for opt in believed_excluded:
+            correct = GROUND_TRUTH_INCLUDED[opt] is False
+            icon = ":material/task_alt:" if correct else ":material/cancel:"
+            st.write(f"{icon} {opt}")
+
+    st.caption(SCOPE_TRUTH_NOTE)
 
 
 def render_abstract_reveal(actual_wh, guess, guess_correct, frequency_label):
@@ -600,6 +674,7 @@ def log_session():
         "guess_correct": st.session_state.get("guess_correct"),
         "reactions": ";".join(st.session_state.get("reactions", [])),
         "reflection": st.session_state.get("reflection"),
+        "scope_beliefs": ";".join(st.session_state.get("scope_beliefs", [])),
     }
 
     with open(LOG_PATH, "a", newline="", encoding="utf-8") as f:
@@ -647,6 +722,7 @@ stages = {
     "task": render_task,
     "habit": render_frequency,
     "guess": render_guess,
+    "scope": render_scope,
     "reveal": render_reveal,
     "reaction": render_reaction,
     "reflect": render_reflect,

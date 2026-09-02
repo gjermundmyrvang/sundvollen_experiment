@@ -31,4 +31,5 @@ EXPECTED_COLUMNS = [
     "guess_correct",
     "reactions",
     "reflection",
+    "scope_beliefs",
 ]
