@@ -420,35 +420,41 @@ def render_reveal():
 
 
 def render_scope_comparison():
-    st.markdown("##### Hva trodde dere var med i tallet?")
+    st.markdown("##### Hva var faktisk med i tallet?")
 
     beliefs = st.session_state.get("scope_beliefs", [])
     scoreable_options = [
         opt for opt in SCOPE_OPTIONS if GROUND_TRUTH_INCLUDED[opt] is not None
     ]
 
-    believed_included = [opt for opt in scoreable_options if opt in beliefs]
-    believed_excluded = [opt for opt in scoreable_options if opt not in beliefs]
+    actually_included = [
+        opt for opt in scoreable_options if GROUND_TRUTH_INCLUDED[opt] is True
+    ]
+    actually_excluded = [
+        opt for opt in scoreable_options if GROUND_TRUTH_INCLUDED[opt] is False
+    ]
 
     col1, col2 = st.columns(2)
 
     with col1:
-        st.write("**Trodde var med:**")
-        if not believed_included:
-            st.write("_(ingenting valgt)_")
-        for opt in believed_included:
-            correct = GROUND_TRUTH_INCLUDED[opt] is True
-            icon = ":material/task_alt:" if correct else ":material/cancel:"
-            st.write(f"{icon} {opt}")
+        st.write("**Faktisk med:**")
+        for opt in actually_included:
+            they_guessed_right = opt in beliefs  # correctly believed it was included
+            if they_guessed_right:
+                st.badge(opt, icon=":material/task_alt:", color="green")
+            else:
+                st.badge(opt, icon=":material/cancel:", color="red")
 
     with col2:
-        st.write("**Trodde ikke var med:**")
-        if not believed_excluded:
-            st.write("_(alt ble valgt)_")
-        for opt in believed_excluded:
-            correct = GROUND_TRUTH_INCLUDED[opt] is False
-            icon = ":material/task_alt:" if correct else ":material/cancel:"
-            st.write(f"{icon} {opt}")
+        st.write("**Faktisk ikke med:**")
+        for opt in actually_excluded:
+            they_guessed_right = (
+                opt not in beliefs
+            )  # correctly believed it was excluded
+            if they_guessed_right:
+                st.badge(opt, icon=":material/task_alt:", color="green")
+            else:
+                st.badge(opt, icon=":material/cancel:", color="red")
 
     st.caption(SCOPE_TRUTH_NOTE)
 
@@ -556,13 +562,15 @@ def render_concrete_visual(actual_wh, frequency_label, guess, guess_correct):
     per_week, yearly_wh = compute_yearly_projection(actual_wh, frequency_label)
     st.markdown(f"##### Hvis dere gjør dette {per_week}x i uken, i ett år:")
     st.caption(f"Basert på deres valg tidligere: `{frequency_label}`")
-    render_battery_row(yearly_wh)
+
+    full_icons = render_battery_row(yearly_wh)
+    st.badge(f"> {full_icons} fulle ladninger", color="violet")
 
     st.session_state.reveal_animated = True
     st.session_state.reveal_done = True
 
 
-def render_battery_row(wh_value, reference_wh=None, icon_width=20, per_row=25):
+def render_battery_row(wh_value, reference_wh=None, icon_width=35, per_row=15):
     reference_wh = reference_wh or REFERENCE_WH
     n_full = wh_value / reference_wh
     full_icons = int(n_full)
@@ -589,6 +597,8 @@ def render_battery_row(wh_value, reference_wh=None, icon_width=20, per_row=25):
                     )
             idx += 1
 
+    return full_icons
+
 
 def battery_icon_for_fraction(fraction):
     if fraction >= 0.75:
@@ -614,8 +624,7 @@ def render_reflect():
     with st.expander("Trenger dere noen tanker å starte fra?", expanded=True):
         st.markdown(
             "- Hva endret seg, om noe, i hvordan dere tenker om denne typen chatbot-bruk?\n"
-            "- Hva hjelper tallet dere forstå, og hva er fortsatt uklart?\n"
-            "- Hvem bør ha ansvar for å redusere denne typen påvirkning, og hvorfor?\n"
+            "- Hva hjelper tallet/visualiseringen dere forstå, og hva er fortsatt uklart?\n"
             "- Følte representasjonen ut som en måling, et anslag, en sammenligning, "
             "eller noe annet?"
         )
