@@ -36,7 +36,7 @@ FREQUENCY_TO_PER_WEEK = {
 }
 
 FREQUENCY_QUESTION = (
-    "Hvor ofte bruker dere en chatbot til akkurat denne typen oppgave &rarr; "
+    "Hvor ofte bruker dere en chatbot til en slik type oppgave &rarr; "
     "å forberede dere raskt på noe dere kunne lite om fra før?"
 )
 
@@ -144,6 +144,7 @@ def reset_for_next_group():
 
 
 def render_entry():
+    print(f"Running experiment in mode: {CONDITION}")
     st.title("Sundvollen AI")
     st.markdown(
         "> Hvor mye ressurser krever en kort samtale med en AI chatbot egentlig?"
@@ -391,9 +392,6 @@ def render_scope():
 
 def render_reveal():
     st.subheader("Fasit")
-    st.caption(
-        f"Fasit sammenlikner med verdien: **{REFERENCE_WH}Wh** som tilsvarer fulladet smarttelefon."
-    )
 
     actual_wh = st.session_state.get("energy_wh")
     frequency_label = st.session_state.get("frequency")
@@ -447,6 +445,9 @@ def render_scope_comparison():
 
 
 def render_abstract_reveal(actual_wh, guess, guess_correct, frequency_label):
+    st.caption(
+        f"Sammenlikner med **{REFERENCE_WH}Wh** som tilsvarer fulladet smarttelefon."
+    )
     energy_min = st.session_state.get("energy_wh_min")
     energy_max = st.session_state.get("energy_wh_max")
     water_l = st.session_state.get("water_l")
@@ -540,11 +541,12 @@ def render_concrete_visual(actual_wh, frequency_label, guess, guess_correct):
             st.error("Ikke helt &rarr; her er fasiten.")
         time.sleep(1.0)
 
-    st.write("Denne samtalen, i telefonladninger:")
+    st.markdown("##### Denne samtalen, i telefonladninger:")
     render_battery_row(actual_wh, icon_width=70, per_row=6)
 
     per_week, yearly_wh = compute_yearly_projection(actual_wh, frequency_label)
     st.markdown(f"##### Hvis dere gjør dette {per_week}x i uken, i ett år:")
+    st.caption(f"Basert på deres valg tidligere: `{frequency_label}`")
     render_battery_row(yearly_wh)
 
     st.session_state.reveal_animated = True
@@ -600,8 +602,17 @@ def render_reaction():
 
 def render_reflect():
     st.subheader("Refleksjon")
+    with st.expander("Trenger dere noen tanker å starte fra?", expanded=True):
+        st.markdown(
+            "- Hva endret seg, om noe, i hvordan dere tenker om denne typen chatbot-bruk?\n"
+            "- Hva hjelper tallet dere forstå, og hva er fortsatt uklart?\n"
+            "- Hvem bør ha ansvar for å redusere denne typen påvirkning, og hvorfor?\n"
+            "- Følte representasjonen ut som en måling, et anslag, en sammenligning, "
+            "eller noe annet?"
+        )
+
     text = st.text_area("Hva overrasket dere mest?")
-    if st.button("Fullfør"):
+    if st.button("Fullfør", disabled=not text.strip(), type="primary"):
         st.session_state.reflection = text
         log_session()
         st.session_state.stage = "done"
